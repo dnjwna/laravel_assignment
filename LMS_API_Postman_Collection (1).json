@@ -1,0 +1,538 @@
+{
+  "info": {
+    "name": "LMS API - Authentication & Testing",
+    "description": "Collection untuk testing API LMS - Assignment Fullstack Web Development",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"student\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', function() {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response has success status', function() {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('success');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has token', function() {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data).to.have.property('token');",
+                  "  // Simpan token ke variable collection secara otomatis",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Me (Protected)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has user data', function() {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data).to.have.property('email');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Wrong Password (Negatif Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"salahpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Courses (CRUD)",
+      "item": [
+        {
+          "name": "Get All Courses (Publik + Caching)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/courses",
+              "host": ["{{base_url}}"],
+              "path": ["courses"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Data is array', function() {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});",
+                  "// Cek caching: panggil lagi request ini",
+                  "// Response time request kedua harusnya lebih cepat"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Courses - Cache Hit (Cek Caching)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/courses",
+              "host": ["{{base_url}}"],
+              "path": ["courses"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK - dari cache', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "// Bandingkan response time dengan request sebelumnya"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Course (Protected)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"course_name\": \"Laravel API Development\",\n  \"description\": \"Buat REST API profesional dengan Laravel\",\n  \"price\": 350000,\n  \"quota\": 25,\n  \"id_category\": 1,\n  \"id_instructor\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/courses",
+              "host": ["{{base_url}}"],
+              "path": ["courses"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', function() {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Course created successfully', function() {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('success');",
+                  "  // Simpan id_course untuk dipakai di test update/delete",
+                  "  pm.collectionVariables.set('course_id', json.data.id_course);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Course - Tanpa Token (Negatif Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"course_name\": \"Test Tanpa Token\",\n  \"price\": 100000,\n  \"id_category\": 1,\n  \"id_instructor\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/courses",
+              "host": ["{{base_url}}"],
+              "path": ["courses"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 Unauthorized tanpa token', function() {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Course (Protected)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 400000,\n  \"quota\": 30\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/courses/{{course_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["courses", "{{course_id}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Course (Protected)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/courses/{{course_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["courses", "{{course_id}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK - Deleted', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Categories (CRUD)",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["categories"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Advanced Query",
+      "item": [
+        {
+          "name": "Instructor Course Count (Aggregation)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/instructors/course-count",
+              "host": ["{{base_url}}"],
+              "path": ["instructors", "course-count"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has total_courses field', function() {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data[0]).to.have.property('total_courses');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enrollment Detail (JOIN Multi-table)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/enrollments/detail",
+              "host": ["{{base_url}}"],
+              "path": ["enrollments", "detail"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has joined fields', function() {",
+                  "  const json = pm.response.json();",
+                  "  const first = json.data[0];",
+                  "  pm.expect(first).to.have.property('student_name');",
+                  "  pm.expect(first).to.have.property('course_name');",
+                  "  pm.expect(first).to.have.property('category_name');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Error Handling",
+      "item": [
+        {
+          "name": "404 - Course Tidak Ada",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/courses/99999",
+              "host": ["{{base_url}}"],
+              "path": ["courses", "99999"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 Not Found', function() {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('Response has error status', function() {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.equal('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - Validasi Gagal (Register tanpa email)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Test User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 Bad Request', function() {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response has errors field', function() {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('errors');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 - Logout berhasil', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
